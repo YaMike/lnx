@@ -44,3 +44,6 @@ how to use:
   ```
     root@omapl138-lcdk:~# while sleep 0.1; do echo 1 > /dev/gpio_test; sleep 0.1; echo 0 > /dev/gpio_test; done;
   ```
+4. Now you can take the probe and see result:
+
+  ![result](gpio_test/scope.png "oscilloscope")
