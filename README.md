@@ -3,7 +3,9 @@ lnx
 
 Miscellaneous tests
 
-__gpio_test__ - simple test driver for gpio. Allows manipulating gpio output value. Gpio number is set as driver parameter. To write 0 or 1 one needs to do `echo 0 > /dev/gpio_test` or `echo 1 > /dev/gpio_test`.
+__gpio_test__
+
+Simple test driver for gpio. Allows manipulating gpio output value. Gpio number is set as driver parameter. To write 0 or 1 one needs to do `echo 0 > /dev/gpio_test` or `echo 1 > /dev/gpio_test`.
 
 modinfo:
 
@@ -47,3 +49,13 @@ how to use:
 4. Now you can take the probe and see result:
 
   ![result](gpio_test/scope.png "oscilloscope")
+
+
+__omap_l138__
+
+Patch for omap-l138 kernel (LCDK module):
+	- Enables CLKOUT (24MHz, internal clock) at TP10, which is used as clock source for external camera connected to J16.
+	- Setup reset pin for camera.
+	- Setup all the pins for camera (DIN0-DIN15).
+	- Added driver for ov5642 to config.
+	- ov5642 enumerated in i2c board info.
