@@ -53,9 +53,14 @@ how to use:
 
 __omap_l138__
 
-Patch for omap-l138 kernel (LCDK module):
-	- Enables CLKOUT (24MHz, internal clock) at TP10, which is used as clock source for external camera connected to J16.
-	- Setup reset pin for camera.
-	- Setup all the pins for camera (DIN0-DIN15).
-	- Added driver for ov5642 to config.
-	- ov5642 enumerated in i2c board info.
+Patch for omap-l138 kernel ([TI LCDK module](http://www.ti.com/tool/tmdxlcdk138)):
+
+- Enables CLKOUT (24MHz, internal clock) at TP10, which is used as clock source for external camera connected to J16.
+
+- Setup reset pin for camera.
+
+- Setup all the pins for camera (DIN0-DIN15).
+
+- Added driver for ov5642 to config.
+
+- ov5642 enumerated in i2c board info.
