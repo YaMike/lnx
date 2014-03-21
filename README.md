@@ -1,7 +1,7 @@
 lnx
 ===
 
-Miscellaneous tests
+Misc tests/projects/patches for linux.
 
 __gpio_test__
 
