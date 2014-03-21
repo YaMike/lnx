@@ -1,0 +1,375 @@
+diff -Naur linux-3.1.10/arch/arm/mach-davinci/board-omapl138-hawk.c linux-3.1.10_camera/arch/arm/mach-davinci/board-omapl138-hawk.c
+--- linux-3.1.10/arch/arm/mach-davinci/board-omapl138-hawk.c	2012-05-11 17:50:15.000000000 +0400
++++ linux-3.1.10_camera/arch/arm/mach-davinci/board-omapl138-hawk.c	2014-03-21 12:22:47.487259427 +0400
+@@ -338,7 +338,7 @@
+ /* I2C */
+ static struct i2c_board_info __initdata omapl138_hawk_i2c_devices[] = {
+ 	{
+-		I2C_BOARD_INFO("tlv320aic3x", 0x18),
++		I2C_BOARD_INFO("tlv320aic3x", 0x1A),
+ 	},
+ };
+ 
+@@ -357,8 +357,8 @@
+ 
+ 	ret = da8xx_register_i2c(0, &omapl138_hawk_i2c_0_pdata);
+ 	if (ret)
+-		pr_warning("omapl138_hawk_init: i2c0 registration failed: %d\n",
+-				ret);
++		pr_warning("omapl138_hawk_init: i2c0 registration failed: %d\n", ret);
++
+ 	i2c_register_board_info(1, omapl138_hawk_i2c_devices,
+ 			ARRAY_SIZE(omapl138_hawk_i2c_devices));
+ }
+@@ -465,6 +465,49 @@
+ 	da8xx_register_mcasp(0, &omapl138_hawk_snd_data);
+ }
+ 
++/*
++ *static const short omapl138_hawk_pwm_pins[] __initconst = {
++ *  DA850_ECAP0_APWM0, DA850_ECAP1_APWM1, DA850_EPWM0B, DA850_EPWM0A,
++ *  DA850_EPWMSYNCI, DA850_EPWMSYNC0, DA850_ECAP2_APWM2, DA850_EHRPWMGLUETZ,
++ *  DA850_EPWM2B, DA850_EPWM2A, DA850_EPWM1B, DA850_EPWM1A,
++ *  -1
++ *}
++ *
++ *static void omapl138_pwm_init(void)
++ *{
++ *  int ret = davinci_cfg_reg_list(omapl138_pwm_pins);
++ *}
++ */
++
++static const short omapl138_camera_pins[] __initconst = {
++	DA850_CLKOUT,		/* clock pin */
++	DA850_GPIO2_10,	/* reset pin */
++	DA850_VPIF_DIN1,  DA850_VPIF_DIN2,  DA850_VPIF_DIN3,  DA850_VPIF_DIN4,
++	DA850_VPIF_DIN5,  DA850_VPIF_DIN6,  DA850_VPIF_DIN7,  DA850_VPIF_DIN8,
++	DA850_VPIF_DIN9,  DA850_VPIF_DIN10, DA850_VPIF_DIN11, DA850_VPIF_DIN12,
++	DA850_VPIF_DIN13_FIELD, DA850_VPIF_DIN14_HSYNC, DA850_VPIF_DIN15_VSYNC,
++	-1
++};
++
++#define CAMERA_RESET_GPIO 42
++
++static void omapl138_camera_init(void) {
++	int err = 0;
++
++	davinci_cfg_reg_list(omapl138_camera_pins);
++
++	if (0 != (err = gpio_request(CAMERA_RESET_GPIO, "GpioTest"))) {
++		pr_alert("TestGpio driver: gpio reuest failed! Return status: %d\n", err);
++		return;
++	}
++
++	if (0 != (err = gpio_direction_output(CAMERA_RESET_GPIO, 0))) {
++		pr_alert("TestGpio driver: cannot setup direction! Return status: %d\n", err);
++		gpio_free(CAMERA_RESET_GPIO);
++		return;
++	}
++}
++
+ static __init void omapl138_hawk_init(void)
+ {
+ 	int ret;
+@@ -512,6 +555,8 @@
+ 	omapl138_hawk_i2c_init();
+ 	omapl138_hawk_display_init();
+ 	omapl138_hawk_sound_init();
++	omapl138_camera_init();
++	omapl138_clkout_init();
+ 
+ 	ret = da850_register_sata(HAWKBOARD_SATA_REFCLKPN_RATE);
+ 	if (ret)
+@@ -533,6 +578,7 @@
+ static void __init omapl138_hawk_map_io(void)
+ {
+ 	da850_init();
++	/*davinci_set_pllrate();*/
+ }
+ 
+ #ifdef CONFIG_HAWKBOARD_LCDK
+diff -Naur linux-3.1.10/arch/arm/mach-davinci/clock.c linux-3.1.10_camera/arch/arm/mach-davinci/clock.c
+--- linux-3.1.10/arch/arm/mach-davinci/clock.c	2012-01-18 19:33:18.000000000 +0400
++++ linux-3.1.10_camera/arch/arm/mach-davinci/clock.c	2014-03-21 12:22:47.523259742 +0400
+@@ -25,6 +25,7 @@
+ #include <mach/clock.h>
+ #include <mach/psc.h>
+ #include <mach/cputype.h>
++#include <mach/da8xx.h>
+ #include "clock.h"
+ 
+ static LIST_HEAD(clocks);
+@@ -346,6 +347,8 @@
+ 	v |= ratio | PLLDIV_EN;
+ 	__raw_writel(v, pll->base + clk->div_reg);
+ 
++	omapl138_clkout_init();
++
+ 	v = __raw_readl(pll->base + PLLCMD);
+ 	v |= PLLCMD_GOSET;
+ 	__raw_writel(v, pll->base + PLLCMD);
+@@ -492,6 +495,7 @@
+ 	if (pll->flags & PLL_HAS_POSTDIV)
+ 		__raw_writel(postdiv, pll->base + POSTDIV);
+ 
++	omapl138_clkout_init();
+ 	udelay(PLL_RESET_TIME);
+ 
+ 	/* Bring PLL out of reset */
+diff -Naur linux-3.1.10/arch/arm/mach-davinci/clock.h linux-3.1.10_camera/arch/arm/mach-davinci/clock.h
+--- linux-3.1.10/arch/arm/mach-davinci/clock.h	2012-01-18 19:33:18.000000000 +0400
++++ linux-3.1.10_camera/arch/arm/mach-davinci/clock.h	2014-03-21 12:22:47.523259742 +0400
+@@ -25,6 +25,18 @@
+ #define PLLCTL_PLLENSRC	BIT(5)
+ #define PLLCTL_CLKMODE  BIT(8)
+ 
++#define PLLOCSEL				0x104
++#define PLLOCSEL0_OSCIN  0x14
++#define PLLOCSEL0_CLK1   0x17
++#define PLLOCSEL0_CLK2   0x18
++#define PLLOCSEL0_CLK3   0x19
++#define PLLOCSEL0_CLK4   0x1A
++#define PLLOCSEL0_CLK5   0x1B
++#define PLLOCSEL0_CLK6   0x1C
++#define PLLOCSEL0_CLK7   0x1D
++#define PLLOCSEL0_OBSCLK1 0x1E
++#define PLLOCSEL0_DISABLE 0x1F
++
+ #define PLLM		0x110
+ #define PLLM_PLLM_MASK  0xff
+ 
+@@ -32,6 +44,7 @@
+ #define PLLDIV1         0x118
+ #define PLLDIV2         0x11c
+ #define PLLDIV3         0x120
++#define OSCDIV          0x124
+ #define POSTDIV         0x128
+ #define BPDIV           0x12c
+ #define PLLCMD		0x138
+diff -Naur linux-3.1.10/arch/arm/mach-davinci/da850.c linux-3.1.10_camera/arch/arm/mach-davinci/da850.c
+--- linux-3.1.10/arch/arm/mach-davinci/da850.c	2012-01-18 19:33:18.000000000 +0400
++++ linux-3.1.10_camera/arch/arm/mach-davinci/da850.c	2014-03-21 12:22:47.535259847 +0400
+@@ -52,6 +52,7 @@
+ static struct pll_data pll0_data = {
+ 	.num		= 1,
+ 	.phys_base	= DA8XX_PLL0_BASE,
++	.base  = 0,
+ 	.flags		= PLL_HAS_PREDIV | PLL_HAS_POSTDIV,
+ };
+ 
+@@ -122,6 +123,7 @@
+ static struct pll_data pll1_data = {
+ 	.num		= 2,
+ 	.phys_base	= DA850_PLL1_BASE,
++	.base = 0,
+ 	.flags		= PLL_HAS_POSTDIV,
+ };
+ 
+@@ -148,38 +150,9 @@
+ static struct clk pll1_sysclk3 = {
+ 	.name		= "pll1_sysclk3",
+ 	.parent		= &pll1_clk,
+-	.flags		= CLK_PLL,
+ 	.div_reg	= PLLDIV3,
+ };
+ 
+-static struct clk pll1_sysclk4 = {
+-	.name		= "pll1_sysclk4",
+-	.parent		= &pll1_clk,
+-	.flags		= CLK_PLL,
+-	.div_reg	= PLLDIV4,
+-};
+-
+-static struct clk pll1_sysclk5 = {
+-	.name		= "pll1_sysclk5",
+-	.parent		= &pll1_clk,
+-	.flags		= CLK_PLL,
+-	.div_reg	= PLLDIV5,
+-};
+-
+-static struct clk pll1_sysclk6 = {
+-	.name		= "pll0_sysclk6",
+-	.parent		= &pll0_clk,
+-	.flags		= CLK_PLL,
+-	.div_reg	= PLLDIV6,
+-};
+-
+-static struct clk pll1_sysclk7 = {
+-	.name		= "pll1_sysclk7",
+-	.parent		= &pll1_clk,
+-	.flags		= CLK_PLL,
+-	.div_reg	= PLLDIV7,
+-};
+-
+ static struct clk i2c0_clk = {
+ 	.name		= "i2c0",
+ 	.parent		= &pll0_aux_clk,
+@@ -396,10 +369,6 @@
+ 	CLK(NULL,		"pll1_aux",	&pll1_aux_clk),
+ 	CLK(NULL,		"pll1_sysclk2",	&pll1_sysclk2),
+ 	CLK(NULL,		"pll1_sysclk3",	&pll1_sysclk3),
+-	CLK(NULL,		"pll1_sysclk4",	&pll1_sysclk4),
+-	CLK(NULL,		"pll1_sysclk5",	&pll1_sysclk5),
+-	CLK(NULL,		"pll1_sysclk6",	&pll1_sysclk6),
+-	CLK(NULL,		"pll1_sysclk7",	&pll1_sysclk7),
+ 	CLK("i2c_davinci.1",	NULL,		&i2c0_clk),
+ 	CLK(NULL,		"timer0",	&timerp64_0_clk),
+ 	CLK("watchdog",		NULL,		&timerp64_1_clk),
+@@ -582,7 +551,7 @@
+ 	MUX_CFG(DA850, EMA_D_15,	8,	0,	15,	1,	false)
+ 	MUX_CFG(DA850, EMA_BA_1,	5,	24,	15,	1,	false)
+ 	MUX_CFG(DA850, EMA_CLK,		6,	0,	15,	1,	false)
+-	MUX_CFG(DA850, EMA_WAIT_1,	6,	24,	15,	1,	false)
++	MUX_CFG(DA850, EMA_WAIT_1,6,	24,	15,	1,  false)
+ 	MUX_CFG(DA850, NEMA_CS_2,	7,	0,	15,	1,	false)
+ 	/* GPIO function */
+ 	MUX_CFG(DA850, GPIO2_4,		6,	12,	15,	8,	false)
+@@ -595,6 +564,27 @@
+ 	MUX_CFG(DA850, GPIO4_1,		10,	24,	15,	8,	false)
+ 	MUX_CFG(DA850, GPIO6_13,	13,	8,	15,	8,	false)
+ 	MUX_CFG(DA850, RTC_ALARM,	0,	28,	15,	2,	false)
++	/* CLKOUT function (used as clock for camera, 24MHz) */
++	MUX_CFG(DA850, CLKOUT,    13,  4, 15, 1,  false)
++	/* RESET function (used to reset camera)*/
++	MUX_CFG(DA850, GPIO2_10,  5,  20, 15, 8,  false)
++	/* Video port configuration */
++	MUX_CFG(DA850, VPIF_DIN0, 15, 4,  15, 1, false)
++	MUX_CFG(DA850, VPIF_DIN1, 15, 0,  15, 1, false)
++	MUX_CFG(DA850, VPIF_DIN2, 14, 28, 15, 1, false)
++	MUX_CFG(DA850, VPIF_DIN3, 14, 24, 15, 1, false)
++	MUX_CFG(DA850, VPIF_DIN4, 14, 20, 15, 1, false)
++	MUX_CFG(DA850, VPIF_DIN5, 14, 16, 15, 1, false)
++	MUX_CFG(DA850, VPIF_DIN6, 14, 12, 15, 1, false)
++	MUX_CFG(DA850, VPIF_DIN7, 14,  8, 15, 1, false)
++	MUX_CFG(DA850, VPIF_DIN8, 16,  4, 15, 1, false)
++	MUX_CFG(DA850, VPIF_DIN9, 16,  0, 15, 1, false)
++	MUX_CFG(DA850, VPIF_DIN10, 15, 28, 15, 1, false)
++	MUX_CFG(DA850, VPIF_DIN11, 15, 24, 15, 1, false)
++	MUX_CFG(DA850, VPIF_DIN12, 15, 20, 15, 1, false)
++	MUX_CFG(DA850, VPIF_DIN13_FIELD, 15, 16, 15, 1, false)
++	MUX_CFG(DA850, VPIF_DIN14_HSYNC, 15, 12, 15, 1, false)
++	MUX_CFG(DA850, VPIF_DIN15_VSYNC, 15, 8, 15, 1, false)
+ #endif
+ };
+ 
+@@ -1147,3 +1137,65 @@
+ 	v &= ~CFGCHIP3_PLL1_MASTER_LOCK;
+ 	__raw_writel(v, DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP3_REG));
+ }
++
++void __init omapl138_clkout_init(void) {
++	unsigned int v;
++
++
++	/* setup CLKOUT output */
++	if ( pll0_clk.pll_data->base != NULL ) {
++		pr_warning("Setup pll0...\n");
++		v = __raw_readl(pll0_clk.pll_data->base + PLLOCSEL);
++		pr_warning("Before write pll0 %s: 0x%x\n", "PLLOCSEL", v);
++		v &= ~0xff;
++		v |= PLLOCSEL0_OSCIN;
++		__raw_writel(v, pll0_clk.pll_data->base + PLLOCSEL);
++		v = __raw_readl(pll0_clk.pll_data->base + PLLOCSEL);
++		pr_warning("After write pll0 %s: 0x%x\n", "PLLOCSEL", v);
++
++		v = __raw_readl(pll0_clk.pll_data->base + OSCDIV);
++		pr_warning("Before write pll0 %s: 0x%x\n", "OSCDIV", v);
++		v &= ~0xffff;
++		v |= 0x8000;
++		__raw_writel(v, pll0_clk.pll_data->base + OSCDIV);
++		v = __raw_readl(pll0_clk.pll_data->base + OSCDIV);
++		pr_warning("After write pll0 %s: 0x%x\n", "OSCDIV", v);
++
++	} else {
++		pr_warning("Cannot setup output clock for pll0!\n");
++	}
++
++/*
++ *  if ( pll1_clk.pll_data->base != NULL ) {
++ *    pr_warning("Setup pll1...\n");
++ *
++ *    v = __raw_readl(pll1_clk.pll_data->base + PLLOCSEL);
++ *    pr_warning("Before write %s: 0x%x\n", "PLLOCSEL", v);
++ *    v &= ~0xff;
++ *    v |= PLLOCSEL0_OSCIN;
++ *    __raw_writel(v, pll1_clk.pll_data->base + PLLOCSEL);
++ *    v = __raw_readl(pll1_clk.pll_data->base + PLLOCSEL);
++ *    pr_warning("After write %s: 0x%x\n", "PLLOCSEL", v);
++ *
++ *    v = __raw_readl(pll1_clk.pll_data->base + PLLDIV3);
++ *    pr_warning("Before write %s: 0x%x\n", "PLLDIV3", v);
++ *    v &= ~0xff;
++ *    v |= 0x8000 | 0x001F;
++ *    __raw_writel(v, pll1_clk.pll_data->base + PLLDIV3);
++ *    v = __raw_readl(pll1_clk.pll_data->base + PLLDIV3);
++ *    pr_warning("After write %s: 0x%x\n", "PLLDIV3", v);
++ *
++ *    v = __raw_readl(pll1_clk.pll_data->base + OSCDIV);
++ *    pr_warning("Before write %s: 0x%x\n", "OSCDIV", v);
++ *    v &= ~0xff;
++ *    v |= 0x8000 | 0x001F;
++ *    __raw_writel(v, pll1_clk.pll_data->base + OSCDIV);
++ *    v = __raw_readl(pll1_clk.pll_data->base + OSCDIV);
++ *    pr_warning("After write %s: 0x%x\n", "OSCDIV", v);
++ *
++ *  } else {
++ *    pr_warning("Cannot setup output clock for pll1!\n");
++ *  }
++ */
++}
++
+diff -Naur linux-3.1.10/arch/arm/mach-davinci/devices-da8xx.c linux-3.1.10_camera/arch/arm/mach-davinci/devices-da8xx.c
+--- linux-3.1.10/arch/arm/mach-davinci/devices-da8xx.c	2012-05-10 02:35:00.000000000 +0400
++++ linux-3.1.10_camera/arch/arm/mach-davinci/devices-da8xx.c	2014-03-21 12:22:47.539259882 +0400
+@@ -553,7 +553,7 @@
+ };
+ 
+ struct da8xx_lcdc_platform_data vga_monitor_pdata = {
+-	.manu_name		= "VGA monitor",
++	.manu_name		= "VGA mon",
+ 	.controller_data	= &lcd_cfg,
+ 	.type			= "VGA_Monitor",
+ };
+diff -Naur linux-3.1.10/arch/arm/mach-davinci/include/mach/da8xx.h linux-3.1.10_camera/arch/arm/mach-davinci/include/mach/da8xx.h
+--- linux-3.1.10/arch/arm/mach-davinci/include/mach/da8xx.h	2012-05-11 01:32:42.000000000 +0400
++++ linux-3.1.10_camera/arch/arm/mach-davinci/include/mach/da8xx.h	2014-03-21 12:22:47.611260510 +0400
+@@ -72,6 +72,7 @@
+ 
+ void __init da830_init(void);
+ void __init da850_init(void);
++void __init omapl138_clkout_init(void);
+ 
+ int da830_register_edma(struct edma_rsv_info *rsv);
+ int da850_register_edma(struct edma_rsv_info *rsv[2]);
+diff -Naur linux-3.1.10/arch/arm/mach-davinci/include/mach/mux.h linux-3.1.10_camera/arch/arm/mach-davinci/include/mach/mux.h
+--- linux-3.1.10/arch/arm/mach-davinci/include/mach/mux.h	2012-01-18 19:33:18.000000000 +0400
++++ linux-3.1.10_camera/arch/arm/mach-davinci/include/mach/mux.h	2014-03-21 12:22:47.639260755 +0400
+@@ -918,6 +918,28 @@
+ 	DA850_GPIO4_1,
+ 	DA850_GPIO6_13,
+ 	DA850_RTC_ALARM,
++
++	/* CLKOUT function */
++	DA850_CLKOUT,
++	DA850_GPIO2_10,
++
++	/* VPIF */
++	DA850_VPIF_DIN0,
++	DA850_VPIF_DIN1,
++	DA850_VPIF_DIN2,
++	DA850_VPIF_DIN3,
++	DA850_VPIF_DIN4,
++	DA850_VPIF_DIN5,
++	DA850_VPIF_DIN6,
++	DA850_VPIF_DIN7,
++	DA850_VPIF_DIN8,
++	DA850_VPIF_DIN9,
++	DA850_VPIF_DIN10,
++	DA850_VPIF_DIN11,
++	DA850_VPIF_DIN12,
++	DA850_VPIF_DIN13_FIELD,
++	DA850_VPIF_DIN14_HSYNC,
++	DA850_VPIF_DIN15_VSYNC
+ };
+ 
+ enum davinci_tnetv107x_index {
