@@ -53,7 +53,7 @@ how to use:
 
 __omap_l138__
 
-Patch for __omap-l138__ kernel ([TI LCDK module](http://www.ti.com/tool/tmdxlcdk138)):
+Patch for __omap-l138__ kernel ([kernel with patches at gitorious.org](https://gitorious.org/linux-davinci/camera-linux-davinci), board description - [TI LCDK module](http://www.ti.com/tool/tmdxlcdk138)):
 
 - Enables CLKOUT (24MHz, internal clock) at TP10, which is used as clock source for external camera connected to J16.
 
