@@ -70,7 +70,7 @@ public:
 		}
 
 		_msg_in.push_back(*m);
-		_cv_pushed.notify_all();
+		_cv_pushed.notify_one();
 		return true;
 	}
 
@@ -90,7 +90,7 @@ public:
 		oldest_msg = _ml.back();
 		_msg_out.push_back(*oldest_msg);
 		_ml.pop_back();
-		_cv_popped.notify_all();
+		_cv_popped.notify_one();
 		return oldest_msg;
 	}
 
@@ -230,15 +230,15 @@ int main()
 {
 	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
 	std::default_random_engine generator(seed);
-	std::uniform_int_distribution<int> prod_cons_dis(5,6);
-	std::uniform_int_distribution<int> msg_cnt_dis(100,300);
+	std::uniform_int_distribution<int> prod_cons_dis(100,600);
+	std::uniform_int_distribution<int> msg_cnt_dis(1000,6000);
 
 	const int cons_cnt = prod_cons_dis(generator);
 	const int prod_cnt = prod_cons_dis(generator);
 
 	//const int cons_cnt = 10;
 	//const int prod_cnt = 2;
-	const std::uint32_t mq_size = 2;
+	const std::uint32_t mq_size = 100;
 
 	std::vector<std::thread> threads;
 	MQueue mq(mq_size);
