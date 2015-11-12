@@ -1,9 +1,9 @@
 //============================================================================
 // Name        : proc_cons_test.cpp
-// Author      : 
+// Author      : Michael Likholet
 // Version     :
 // Copyright   : Your copyright notice
-// Description : Hello World in C++, Ansi-style
+// Description : g++
 //============================================================================
 
 #include <iostream>
